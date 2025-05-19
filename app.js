@@ -61,8 +61,8 @@ function updateBoardSize() {
     
     canvas.width = cellSize * boardSize;
     canvas.height = cellSize * boardSize;
-    canvas.style.maxWidth = '100%';
-    canvas.style.height = 'auto';
+    canvas.style.width = `${canvas.width}px`;
+    canvas.style.height = `${canvas.height}px`;
 }
 
 // Отрисовка доски
@@ -139,7 +139,162 @@ function drawBoard() {
     }
 }
 
-// Улучшенный ИИ для бота
+// Рисование камня
+function drawStone(x, y, color) {
+    const cellSize = canvas.width / boardSize;
+    const stoneX = (x + 0.5) * cellSize;
+    const stoneY = (y + 0.5) * cellSize;
+    const radius = cellSize / 2 - 2;
+    
+    const gradient = ctx.createRadialGradient(
+        stoneX - radius / 3,
+        stoneY - radius / 3,
+        radius / 10,
+        stoneX,
+        stoneY,
+        radius
+    );
+    
+    if (color === 'black') {
+        gradient.addColorStop(0, '#666');
+        gradient.addColorStop(1, '#000');
+    } else {
+        gradient.addColorStop(0, '#fff');
+        gradient.addColorStop(1, '#ddd');
+    }
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(stoneX, stoneY, radius, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Поиск группы камней
+function findGroup(x, y, color, group = [], visited = new Set()) {
+    const key = `${x},${y}`;
+    if (visited.has(key)) return group;
+    visited.add(key);
+    
+    if (boardState[y][x] !== color) return group;
+    
+    group.push([x, y]);
+    
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    for (const [dx, dy] of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize) {
+            findGroup(nx, ny, color, group, visited);
+        }
+    }
+    
+    return group;
+}
+
+// Проверка на дыхания
+function hasLiberties(x, y, color = null, visited = new Set()) {
+    if (!color) color = boardState[y][x];
+    const key = `${x},${y}`;
+    
+    if (visited.has(key)) return false;
+    visited.add(key);
+    
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    for (const [dx, dy] of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize) {
+            if (boardState[ny][nx] === null) return true;
+            if (boardState[ny][nx] === color && hasLiberties(nx, ny, color, visited)) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+// Удаление захваченных камней
+function removeCapturedStones(x, y) {
+    const opponent = currentPlayer === 'black' ? 'white' : 'black';
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    const removedStones = [];
+    
+    for (const [dx, dy] of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize && boardState[ny][nx] === opponent) {
+            const group = findGroup(nx, ny, opponent);
+            let groupHasLiberties = false;
+            
+            for (const [gx, gy] of group) {
+                if (hasLiberties(gx, gy, opponent, new Set())) {
+                    groupHasLiberties = true;
+                    break;
+                }
+            }
+            
+            if (!groupHasLiberties) {
+                for (const [gx, gy] of group) {
+                    boardState[gy][gx] = null;
+                    removedStones.push([gx, gy]);
+                }
+            }
+        }
+    }
+    
+    // Проверка на ко (если захвачен ровно один камень)
+    if (removedStones.length === 1) {
+        koPoint = removedStones[0];
+    } else {
+        koPoint = null;
+    }
+    
+    return removedStones;
+}
+
+// Сделать ход
+function makeMove(x, y) {
+    // Проверка на ко
+    if (koPoint && koPoint[0] === x && koPoint[1] === y) {
+        return false;
+    }
+    
+    if (boardState[y][x] !== null) return false;
+    
+    // Временная установка камня
+    boardState[y][x] = currentPlayer;
+    const removedStones = removeCapturedStones(x, y);
+    
+    // Проверка на самоубийство
+    if (!hasLiberties(x, y) && removedStones.length === 0) {
+        boardState[y][x] = null;
+        return false;
+    }
+    
+    // Ход valid
+    lastMove = [x, y];
+    passes = 0;
+    
+    // Смена игрока
+    currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+    currentPlayerSpan.textContent = currentPlayer === 'black' ? 'Чёрные' : 'Белые';
+    currentPlayerSpan.style.color = currentPlayer === 'black' ? 'black' : 'white';
+    
+    drawBoard();
+    
+    // Если следующий ход бота
+    if (currentPlayer === 'white') {
+        setTimeout(makeBotMove, 500);
+    }
+    
+    return true;
+}
+
+// Ход бота (улучшенный ИИ)
 function makeBotMove() {
     if (!gameStarted || currentPlayer !== 'white') return;
 
@@ -273,10 +428,8 @@ function getHardBotMove(emptyCells) {
 function getExpertBotMove(emptyCells) {
     // 1. Попытка создать два глаза для своей группы
     for (const [x, y] of emptyCells) {
-        // Проверяем, может ли этот ход создать глаз
         boardState[y][x] = 'white';
         
-        // Ищем группы белых, которые могут получить два глаза
         const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
         for (const [dx, dy] of directions) {
             const nx = x + dx;
@@ -286,7 +439,6 @@ function getExpertBotMove(emptyCells) {
                 const group = findGroup(nx, ny, 'white');
                 let eyeCount = 0;
                 
-                // Проверяем потенциальные глаза в группе
                 for (const [gx, gy] of group) {
                     const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
                     let isPotentialEye = true;
@@ -348,33 +500,137 @@ function getExpertBotMove(emptyCells) {
     return null;
 }
 
+// Пас
+function pass() {
+    passes++;
+    lastMove = null;
+    currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+    currentPlayerSpan.textContent = currentPlayer === 'black' ? 'Чёрные' : 'Белые';
+    currentPlayerSpan.style.color = currentPlayer === 'black' ? 'black' : 'white';
+    
+    if (passes >= 2) {
+        endGame();
+    } else if (currentPlayer === 'white') {
+        setTimeout(makeBotMove, 500);
+    }
+}
+
+// Сдаться
+function resign() {
+    const winner = currentPlayer === 'black' ? 'Белые' : 'Чёрные';
+    alert(`Игра окончена. ${winner} побеждают!`);
+    newGame();
+}
+
+// Завершение игры
+function endGame() {
+    let blackScore = 0;
+    let whiteScore = 6.5; // коми
+    
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (boardState[y][x] === 'black') blackScore++;
+            else if (boardState[y][x] === 'white') whiteScore++;
+            else {
+                const visited = new Set();
+                const owner = determineTerritoryOwner(x, y, visited);
+                if (owner === 'black') blackScore++;
+                else if (owner === 'white') whiteScore++;
+            }
+        }
+    }
+    
+    let resultMessage;
+    if (blackScore > whiteScore) {
+        resultMessage = `Игра окончена. Чёрные побеждают ${blackScore.toFixed(1)} : ${whiteScore.toFixed(1)}`;
+    } else {
+        resultMessage = `Игра окончена. Белые побеждают ${whiteScore.toFixed(1)} : ${blackScore.toFixed(1)}`;
+    }
+    
+    alert(resultMessage);
+    newGame();
+}
+
+// Определение владельца территории
+function determineTerritoryOwner(x, y, visited) {
+    const key = `${x},${y}`;
+    if (visited.has(key)) return null;
+    visited.add(key);
+    
+    if (boardState[y][x] === 'black') return 'black';
+    if (boardState[y][x] === 'white') return 'white';
+    
+    const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    let owner = null;
+    
+    for (const [dx, dy] of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize) {
+            const cellOwner = determineTerritoryOwner(nx, ny, visited);
+            if (cellOwner) {
+                if (owner && owner !== cellOwner) return null;
+                owner = cellOwner;
+            }
+        }
+    }
+    
+    return owner;
+}
+
+// Новая игра
+function newGame() {
+    settingsDiv.style.display = 'block';
+    boardContainer.style.display = 'none';
+    gameStarted = false;
+}
+
 // Обработка клика по доске
-canvas.addEventListener('click', (e) => {
+function handleCanvasClick(e) {
     if (!gameStarted || currentPlayer === 'white') return;
     
-    // Получаем реальные размеры canvas (могут отличаться от CSS размеров)
     const rect = canvas.getBoundingClientRect();
-    
-    // Рассчитываем масштабные коэффициенты
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     
-    // Преобразуем координаты клика в координаты canvas
     const canvasX = (e.clientX - rect.left) * scaleX;
     const canvasY = (e.clientY - rect.top) * scaleY;
     
-    // Определяем клетку доски
     const cellSize = canvas.width / boardSize;
     const boardX = Math.floor(canvasX / cellSize);
     const boardY = Math.floor(canvasY / cellSize);
     
-    // Проверяем границы доски
     if (boardX >= 0 && boardX < boardSize && boardY >= 0 && boardY < boardSize) {
         makeMove(boardX, boardY);
     }
-});
+}
 
-// Обработчики кнопок
+// Обработка касания на мобильных устройствах
+function handleCanvasTouch(e) {
+    if (!gameStarted || currentPlayer === 'white') return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const canvasX = (touch.clientX - rect.left) * scaleX;
+    const canvasY = (touch.clientY - rect.top) * scaleY;
+    
+    const cellSize = canvas.width / boardSize;
+    const boardX = Math.floor(canvasX / cellSize);
+    const boardY = Math.floor(canvasY / cellSize);
+    
+    if (boardX >= 0 && boardX < boardSize && boardY >= 0 && boardY < boardSize) {
+        makeMove(boardX, boardY);
+    }
+}
+
+// Инициализация обработчиков событий
+canvas.addEventListener('click', handleCanvasClick);
+canvas.addEventListener('touchstart', handleCanvasTouch);
 startGameBtn.addEventListener('click', initGame);
 passButton.addEventListener('click', pass);
 resignButton.addEventListener('click', resign);

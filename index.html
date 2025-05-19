@@ -6,89 +6,102 @@
     <title>Игра Го</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             background-color: #f5f5f5;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
         }
         .container {
-            max-width: 100%;
             width: 100%;
+            max-width: 100%;
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            box-sizing: border-box;
         }
         h1 {
             text-align: center;
             color: #333;
-            margin-top: 0;
+            margin: 5px 0 15px;
+            font-size: 1.5rem;
         }
         .settings {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .setting-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            font-size: 0.9rem;
         }
         select, button {
             width: 100%;
-            padding: 10px;
+            padding: 8px 10px;
             border-radius: 5px;
             border: 1px solid #ddd;
-            font-size: 16px;
-            box-sizing: border-box;
+            font-size: 0.9rem;
         }
         button {
             background-color: #007bff;
             color: white;
             border: none;
             cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.3s;
+            margin-top: 8px;
+            transition: background-color 0.2s;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #0069d9;
         }
         #board-container {
-            margin-top: 20px;
+            margin: 15px 0;
             display: none;
             width: 100%;
-            overflow-x: auto;
+            overflow: hidden;
         }
         .board-wrapper {
             display: flex;
             justify-content: center;
             margin: 0 auto;
-            padding: 10px 0;
+            padding: 5px 0;
+            max-width: 100%;
         }
         canvas {
             background-color: #dcb35c;
             border: 1px solid #999;
+            max-width: 100%;
+            height: auto;
         }
         .game-info {
-            margin-top: 15px;
+            margin-top: 12px;
             text-align: center;
         }
         .game-controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 10px;
         }
         .game-controls button {
             width: auto;
-            min-width: 120px;
+            min-width: 100px;
             flex: 1;
+            padding: 8px 5px;
+            font-size: 0.8rem;
+        }
+        #current-player {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -100,9 +113,9 @@
             <div class="setting-group">
                 <label for="board-size">Размер доски:</label>
                 <select id="board-size">
-                    <option value="9">9×9 (начинающие)</option>
-                    <option value="13">13×13 (средний уровень)</option>
-                    <option value="19" selected>19×19 (стандарт)</option>
+                    <option value="9">9×9</option>
+                    <option value="13">13×13</option>
+                    <option value="19" selected>19×19</option>
                 </select>
             </div>
             

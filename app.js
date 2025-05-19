@@ -139,9 +139,6 @@ function drawBoard() {
     }
 }
 
-// Остальные функции (drawStone, findGroup, hasLiberties, removeCapturedStones, makeMove) 
-// остаются такими же, как в предыдущем коде
-
 // Улучшенный ИИ для бота
 function makeBotMove() {
     if (!gameStarted || currentPlayer !== 'white') return;
@@ -351,24 +348,27 @@ function getExpertBotMove(emptyCells) {
     return null;
 }
 
-// Остальные функции (pass, resign, endGame, determineTerritoryOwner, newGame) 
-// остаются такими же, как в предыдущем коде
-
 // Обработка клика по доске
 canvas.addEventListener('click', (e) => {
     if (!gameStarted || currentPlayer === 'white') return;
     
+    // Получаем реальные размеры canvas (могут отличаться от CSS размеров)
     const rect = canvas.getBoundingClientRect();
+    
+    // Рассчитываем масштабные коэффициенты
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    // Преобразуем координаты клика в координаты canvas
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
     
+    // Определяем клетку доски
     const cellSize = canvas.width / boardSize;
-    const boardX = Math.floor(x / cellSize);
-    const boardY = Math.floor(y / cellSize);
+    const boardX = Math.floor(canvasX / cellSize);
+    const boardY = Math.floor(canvasY / cellSize);
     
+    // Проверяем границы доски
     if (boardX >= 0 && boardX < boardSize && boardY >= 0 && boardY < boardSize) {
         makeMove(boardX, boardY);
     }
